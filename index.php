@@ -57,7 +57,7 @@ function Load_payping_ghesta_Gateway(){
 				$this->id = 'WC_payping_Ghesta';
 				$this->method_title = __('پرداخت قسطی پی‌پینگ-قسطا', 'woocommerce');
 				$this->method_description = __('تنظیمات نمایش پرداخت قسطی از طریق پی‌پینگ-قسطا', 'woocommerce');
-				$this->icon = apply_filters('WC_payping_Ghesta_logo', WCG_GPPDIRU . '/assets/images/logo.svg');
+				$this->icon = apply_filters('WC_payping_Ghesta_logo', WCG_GPPDIRU . '/assets/images/logo.png');
 				$this->has_fields = false;
 
 				$this->init_form_fields();
