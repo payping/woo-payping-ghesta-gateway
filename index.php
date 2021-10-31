@@ -242,9 +242,9 @@ function Load_payping_ghesta_Gateway(){
                 $response = wp_remote_post($api_url, $api_args);
                 
                 /* Call Function Show Debug In Console */
-                WC_GPP_Debug_Log($this->Debug_Mode, $response, "Pay"); 
+                payping_woo_debug_log($this->Debug_Mode, $response, "Pay Ghesta"); 
                 
-				$XPP_ID = $response["headers"]["x-paypingrequest-id"];
+// 				$XPP_ID = $response["headers"]["x-paypingrequest-id"];
 					if( is_wp_error($response) ){
 						$Message = $response->get_error_message();
 					}else{	
@@ -253,6 +253,7 @@ function Load_payping_ghesta_Gateway(){
 							if (isset($response["body"]) and $response["body"] != '') {
 								$code_pay = wp_remote_retrieve_body($response);
 								$code_pay =  json_decode($code_pay, true);
+								update_post_meta($order_id, '_payping_payCode', $code_pay["code"] );
 								wp_redirect(sprintf('https://payping.ir/installment/%s?type=ghesta', $code_pay["code"]));
 								exit;
 							} else {
@@ -286,7 +287,6 @@ function Load_payping_ghesta_Gateway(){
 
 			public function Return_from_payping_Ghesta_Gateway(){
 				global $woocommerce;
-
 				if( isset( $_GET['wc_order'] ) ){
 					$order_id = $_GET['wc_order'];
 				}elseif( isset( $_POST['wc_order'] ) ){
@@ -299,12 +299,11 @@ function Load_payping_ghesta_Gateway(){
 					$order_id = $woocommerce->session->order_id_payping;
 					unset( $woocommerce->session->order_id_payping );
 				}
-
+				$order = new WC_Order($order_id);
 				$order_id = apply_filters('WC_payping_return_order_id', $order_id);
-				
-				if($order_id){
 
-					$order = new WC_Order($order_id);
+				if( isset( $order_id ) && $order->get_id() == $order_id ){
+					
 					$currency = $order->get_currency();
 					$currency = apply_filters('WC_payping_Currency', $currency, $order_id);
 
@@ -327,6 +326,7 @@ function Load_payping_ghesta_Gateway(){
 						$refid = apply_filters('WC_payping_return_refid', $refid);
 						
 						$data = array('refId' => $refid, 'amount' => $Amount);
+
                         $args = array(
                             'body' => json_encode($data),
                             'timeout' => '45',
@@ -340,20 +340,22 @@ function Load_payping_ghesta_Gateway(){
 	                       	),
                          'cookies' => array()
                         );
-                    $verify_api_url = apply_filters( 'WC_payping_Gateway_Payment_verify_api_url', $this->serverUrl . '/pay/verify', $order_id );
+                    $verify_api_url = apply_filters( 'WC_payping_Gateway_Payment_verify_api_url', 'https://api.payping.ir/v2/pay/verify', $order_id );
                     $response = wp_remote_post($verify_api_url, $args);
 					$body = wp_remote_retrieve_body( $response );
+// 						echo '<pre dir="ltr">'; var_dump( $response ); wp_die();
                     /* Call Function Show Debug In Console */
-                    WC_GPP_Debug_Log($this->Debug_Mode, $response, "Verify");
+					$paypingpayCode = get_post_meta($order_id, '_payping_payCode', true);
+                    payping_woo_debug_log($this->Debug_Mode, $response, "Verify Ghesta ".$paypingpayCode);
                         
-                    $XPP_ID = $response["headers"]["x-paypingrequest-id"];
+//                     $XPP_ID = $response["headers"]["x-paypingrequest-id"];
                     if( is_wp_error($response) ){
                         $Status = 'failed';
 				        $Fault = $response->get_error_message();
 						$Message = 'خطا در ارتباط به پی‌پینگ : شرح خطا '.$response->get_error_message();
 					}else{
 						$code = wp_remote_retrieve_response_code( $response );
-						
+// 						echo '<pre dir="ltr">'; var_dump( $response );  wp_die();
 						if ( $code === 200 ) {
 							if (isset( $refid ) and $refid != '') {
 								$Status = 'completed';
@@ -369,6 +371,11 @@ function Load_payping_ghesta_Gateway(){
 						} elseif ( $code == 400) {
 							$rbody = json_decode( $body, true );
 							if( array_key_exists('15', $rbody) ){
+								$Status = 'completed';
+								$Transaction_ID = $refid;
+								$Fault = '';
+								$Message = '';
+							}elseif( array_key_exists('562', $rbody) ){
 								$Status = 'completed';
 								$Transaction_ID = $refid;
 								$Fault = '';
@@ -453,8 +460,7 @@ function Load_payping_ghesta_Gateway(){
 						exit;
 					}
 				}else{
-
-					$Fault = __('شماره سفارش وجود ندارد .', 'woocommerce');
+					$Fault = __('شماره سفارش در سایت وجود ندارد .', 'woocommerce');
 					$Notice = wpautop(wptexturize($this->failed_massage.' شناسه خطای پی پینگ:'.$XPP_ID));
 					$Notice = str_replace("{fault}", $Fault, $Notice);
 					$Notice = apply_filters('WC_payping_Return_from_Gateway_No_Order_ID_Notice', $Notice, $order_id, $Fault);
