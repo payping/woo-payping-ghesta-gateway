@@ -1,6 +1,6 @@
 <?php
 /*
-Plugin Name: Woocommerce PayPing Ghesta Gateway
+Plugin Name: PayPing-Ghesta Gateway on Woocommerce   
 Version: 1.0.0
 Description:  افزونه جانبی پرداخت با قسطا در افزونه پرداخا پی‌پینگ
 Plugin URI: https://www.payping.ir/
@@ -288,13 +288,13 @@ function Load_payping_ghesta_Gateway(){
 			public function Return_from_payping_Ghesta_Gateway(){
 				global $woocommerce;
 				if( isset( $_GET['wc_order'] ) ){
-					$order_id = $_GET['wc_order'];
+					$order_id = sanitize_text_field( $_GET['wc_order'] );
 				}elseif( isset( $_POST['wc_order'] ) ){
-					$order_id = $_POST['wc_order'];
+					$order_id = sanitize_text_field( $_POST['wc_order'] );
 				}elseif( isset( $_GET['clientrefid'] ) ){
-					$order_id = $_GET['clientrefid'];
+					$order_id = sanitize_text_field( $_GET['clientrefid'] );
 				}elseif( isset( $_POST['clientrefid'] ) ){
-					$order_id = $_POST['clientrefid'];
+					$order_id = sanitize_text_field( $_POST['clientrefid'] );
 				}else{
 					$order_id = $woocommerce->session->order_id_payping;
 					unset( $woocommerce->session->order_id_payping );
@@ -322,7 +322,7 @@ function Load_payping_ghesta_Gateway(){
                         else if (strtolower($currency) == strtolower('IRR'))
                             $Amount = $Amount / 10;
 							
-                        $refid = $_POST['refid'];
+                        $refid = sanitize_text_field( $_POST['refid'] );
 						$refid = apply_filters('WC_payping_return_refid', $refid);
 						
 						$data = array('refId' => $refid, 'amount' => $Amount);
@@ -343,19 +343,17 @@ function Load_payping_ghesta_Gateway(){
                     $verify_api_url = apply_filters( 'WC_payping_Gateway_Payment_verify_api_url', 'https://api.payping.ir/v2/pay/verify', $order_id );
                     $response = wp_remote_post($verify_api_url, $args);
 					$body = wp_remote_retrieve_body( $response );
-// 						echo '<pre dir="ltr">'; var_dump( $response ); wp_die();
+
                     /* Call Function Show Debug In Console */
 					$paypingpayCode = get_post_meta($order_id, '_payping_payCode', true);
                     payping_woo_debug_log($this->Debug_Mode, $response, "Verify Ghesta ".$paypingpayCode);
                         
-//                     $XPP_ID = $response["headers"]["x-paypingrequest-id"];
                     if( is_wp_error($response) ){
                         $Status = 'failed';
 				        $Fault = $response->get_error_message();
 						$Message = 'خطا در ارتباط به پی‌پینگ : شرح خطا '.$response->get_error_message();
 					}else{
 						$code = wp_remote_retrieve_response_code( $response );
-// 						echo '<pre dir="ltr">'; var_dump( $response );  wp_die();
 						if ( $code === 200 ) {
 							if (isset( $refid ) and $refid != '') {
 								$Status = 'completed';
@@ -442,7 +440,6 @@ function Load_payping_ghesta_Gateway(){
 							exit;
 						}
 					}else{
-
 
 						$Transaction_ID = get_post_meta($order_id, '_transaction_id', true);
 
