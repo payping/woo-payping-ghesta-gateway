@@ -1,8 +1,8 @@
 <?php
 /*
-Plugin Name: PayPing-Ghesta Gateway on Woocommerce   
+Plugin Name: gateway-payping-ghesta-for-woocommerce
 Version: 1.0.0
-Description:  افزونه جانبی پرداخت با قسطا در افزونه پرداخا پی‌پینگ
+Description:  درگاه خرید اعتباری قسطا
 Plugin URI: https://www.payping.ir/
 Author: Mahdi Sarani
 Author URI: https://mahdisarani.ir
@@ -17,13 +17,13 @@ include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
  * Detect plugin. For use in Admin area only.
  */
 if( ! is_plugin_active( 'woo-payping-gateway/index.php' ) ){
-    add_action( 'admin_notices', 'ppg_plugin_admin_notice' );
+    add_action( 'admin_notices', 'payping_ghesta_plugin_admin_notice' );
 }else{
 	add_action('plugins_loaded', 'Load_payping_ghesta_Gateway', 0);
 }
 
 //Display admin notices 
-function ppg_plugin_admin_notice(){ ?>
+function payping_ghesta_plugin_admin_notice(){ ?>
 	<div class="notice notice-warning is-dismissible">
 		<p><?php _e('برای استفاده از پرداخت قسطی باید افزونه پرداخت پی‌پینگ نصب و فعال باشد.', 'textdomain') ?></p>
 	</div>
@@ -55,8 +55,8 @@ function Load_payping_ghesta_Gateway(){
 				}
 				
 				$this->id = 'WC_payping_Ghesta';
-				$this->method_title = __('پرداخت قسطی پی‌پینگ-قسطا', 'woocommerce');
-				$this->method_description = __('تنظیمات نمایش پرداخت قسطی از طریق پی‌پینگ-قسطا', 'woocommerce');
+				$this->method_title = __('درگاه خرید اعتباری قسطا', 'woocommerce');
+				$this->method_description = __('تنظیمات نمایش درگاه خرید اعتباری قسطا', 'woocommerce');
 				$this->icon = apply_filters('WC_payping_Ghesta_logo', WCG_GPPDIRU . '/assets/images/logo.png');
 				$this->has_fields = false;
 
@@ -96,8 +96,8 @@ function Load_payping_ghesta_Gateway(){
 						'enabled' => array(
 							'title' => __('فعالسازی/غیرفعالسازی', 'woocommerce'),
 							'type' => 'checkbox',
-							'label' => __('فعالسازی پرداخت قسطی از طریق پی‌پینگ-قسطا', 'woocommerce'),
-							'description' => __('برای فعالسازی پرداخت قسطی از طریق پی‌پینگ-قسطا باید چک باکس را تیک بزنید', 'woocommerce'),
+							'label' => __('فعالسازی درگاه خرید اعتباری قسطا', 'woocommerce'),
+							'description' => __('برای فعالسازی درگاه خرید اعتباری قسطا باید چک باکس را تیک بزنید', 'woocommerce'),
 							'default' => 'yes',
 							'desc_tip' => true,
 						),
@@ -106,7 +106,7 @@ function Load_payping_ghesta_Gateway(){
 							'title' => __('عنوان درگاه', 'woocommerce'),
 							'type' => 'text',
 							'description' => __('عنوان درگاه که در طی خرید به مشتری نمایش داده میشود', 'woocommerce'),
-							'default' => __('پرداخت قسطی پی‌پینگ-قسطا', 'woocommerce'),
+							'default' => __('درگاه خرید اعتباری قسطا', 'woocommerce'),
 							'desc_tip' => true,
 						),
 						'description' => array(
@@ -114,7 +114,7 @@ function Load_payping_ghesta_Gateway(){
 							'type' => 'text',
 							'desc_tip' => true,
 							'description' => __('توضیحاتی که در طی عملیات پرداخت برای درگاه نمایش داده خواهد شد', 'woocommerce'),
-							'default' => __('پرداخت قسطی از طریق درگاه پرداخت پی‌پینگ-قسطا', 'woocommerce')
+							'default' => __('پرداخت از طریق درگاه خرید اعتباری قسطا', 'woocommerce')
 						),
 						'payment_confing' => array(
 							'title' => __('تنظیمات عملیات پرداخت', 'woocommerce'),
@@ -242,9 +242,9 @@ function Load_payping_ghesta_Gateway(){
                 $response = wp_remote_post($api_url, $api_args);
                 
                 /* Call Function Show Debug In Console */
-                payping_woo_debug_log($this->Debug_Mode, $response, "Pay Ghesta"); 
+                WC_GPP_Debug_Log($this->Debug_Mode, $response, "Pay"); 
                 
-// 				$XPP_ID = $response["headers"]["x-paypingrequest-id"];
+				$XPP_ID = $response["headers"]["x-paypingrequest-id"];
 					if( is_wp_error($response) ){
 						$Message = $response->get_error_message();
 					}else{	
@@ -253,7 +253,6 @@ function Load_payping_ghesta_Gateway(){
 							if (isset($response["body"]) and $response["body"] != '') {
 								$code_pay = wp_remote_retrieve_body($response);
 								$code_pay =  json_decode($code_pay, true);
-								update_post_meta($order_id, '_payping_payCode', $code_pay["code"] );
 								wp_redirect(sprintf('https://payping.ir/installment/%s?type=ghesta', $code_pay["code"]));
 								exit;
 							} else {
@@ -287,23 +286,25 @@ function Load_payping_ghesta_Gateway(){
 
 			public function Return_from_payping_Ghesta_Gateway(){
 				global $woocommerce;
+
 				if( isset( $_GET['wc_order'] ) ){
-					$order_id = sanitize_text_field( $_GET['wc_order'] );
+					$order_id = sanitize_text_field($_GET['wc_order']);
 				}elseif( isset( $_POST['wc_order'] ) ){
-					$order_id = sanitize_text_field( $_POST['wc_order'] );
+					$order_id = sanitize_text_field($_POST['wc_order']);
 				}elseif( isset( $_GET['clientrefid'] ) ){
-					$order_id = sanitize_text_field( $_GET['clientrefid'] );
+					$order_id = sanitize_text_field($_GET['clientrefid']);
 				}elseif( isset( $_POST['clientrefid'] ) ){
-					$order_id = sanitize_text_field( $_POST['clientrefid'] );
+					$order_id = sanitize_text_field($_POST['clientrefid']);
 				}else{
 					$order_id = $woocommerce->session->order_id_payping;
 					unset( $woocommerce->session->order_id_payping );
 				}
-				$order = new WC_Order($order_id);
-				$order_id = apply_filters('WC_payping_return_order_id', $order_id);
 
-				if( isset( $order_id ) && $order->get_id() == $order_id ){
-					
+				$order_id = apply_filters('WC_payping_return_order_id', $order_id);
+				
+				if($order_id){
+
+					$order = new WC_Order($order_id);
 					$currency = $order->get_currency();
 					$currency = apply_filters('WC_payping_Currency', $currency, $order_id);
 
@@ -322,11 +323,10 @@ function Load_payping_ghesta_Gateway(){
                         else if (strtolower($currency) == strtolower('IRR'))
                             $Amount = $Amount / 10;
 							
-                        $refid = sanitize_text_field( $_POST['refid'] );
+                        $refid = sanitize_text_field($_POST['refid']);
 						$refid = apply_filters('WC_payping_return_refid', $refid);
 						
 						$data = array('refId' => $refid, 'amount' => $Amount);
-
                         $args = array(
                             'body' => json_encode($data),
                             'timeout' => '45',
@@ -340,20 +340,20 @@ function Load_payping_ghesta_Gateway(){
 	                       	),
                          'cookies' => array()
                         );
-                    $verify_api_url = apply_filters( 'WC_payping_Gateway_Payment_verify_api_url', 'https://api.payping.ir/v2/pay/verify', $order_id );
+                    $verify_api_url = apply_filters( 'WC_payping_Gateway_Payment_verify_api_url', $this->serverUrl . '/pay/verify', $order_id );
                     $response = wp_remote_post($verify_api_url, $args);
 					$body = wp_remote_retrieve_body( $response );
-
                     /* Call Function Show Debug In Console */
-					$paypingpayCode = get_post_meta($order_id, '_payping_payCode', true);
-                    payping_woo_debug_log($this->Debug_Mode, $response, "Verify Ghesta ".$paypingpayCode);
+                    WC_GPP_Debug_Log($this->Debug_Mode, $response, "Verify");
                         
+                    $XPP_ID = $response["headers"]["x-paypingrequest-id"];
                     if( is_wp_error($response) ){
                         $Status = 'failed';
 				        $Fault = $response->get_error_message();
 						$Message = 'خطا در ارتباط به پی‌پینگ : شرح خطا '.$response->get_error_message();
 					}else{
 						$code = wp_remote_retrieve_response_code( $response );
+						
 						if ( $code === 200 ) {
 							if (isset( $refid ) and $refid != '') {
 								$Status = 'completed';
@@ -369,11 +369,6 @@ function Load_payping_ghesta_Gateway(){
 						} elseif ( $code == 400) {
 							$rbody = json_decode( $body, true );
 							if( array_key_exists('15', $rbody) ){
-								$Status = 'completed';
-								$Transaction_ID = $refid;
-								$Fault = '';
-								$Message = '';
-							}elseif( array_key_exists('562', $rbody) ){
 								$Status = 'completed';
 								$Transaction_ID = $refid;
 								$Fault = '';
@@ -441,6 +436,7 @@ function Load_payping_ghesta_Gateway(){
 						}
 					}else{
 
+
 						$Transaction_ID = get_post_meta($order_id, '_transaction_id', true);
 
 						$Notice = wpautop(wptexturize($this->success_massage.' شناسه خطای پی پینگ:'.$XPP_ID));
@@ -457,7 +453,8 @@ function Load_payping_ghesta_Gateway(){
 						exit;
 					}
 				}else{
-					$Fault = __('شماره سفارش در سایت وجود ندارد .', 'woocommerce');
+
+					$Fault = __('شماره سفارش وجود ندارد .', 'woocommerce');
 					$Notice = wpautop(wptexturize($this->failed_massage.' شناسه خطای پی پینگ:'.$XPP_ID));
 					$Notice = str_replace("{fault}", $Fault, $Notice);
 					$Notice = apply_filters('WC_payping_Return_from_Gateway_No_Order_ID_Notice', $Notice, $order_id, $Fault);
@@ -478,7 +475,7 @@ function Load_payping_ghesta_Gateway(){
  * @snippet       Add Custom Field @ WooCommerce Checkout Page
  */
  
-function ppg_add_custom_checkout_field( $checkout ) { 
+function payping_ghestaadd_custom_checkout_field( $checkout ) { 
    $current_user = wp_get_current_user();
    $saved_Mobile = $current_user->Mobile;
    woocommerce_form_field( 'Mobile', array(        
@@ -490,36 +487,36 @@ function ppg_add_custom_checkout_field( $checkout ) {
       'default' => $saved_Mobile,        
    ), $checkout->get_value( 'Mobile' ) ); 
 }
-add_action( 'woocommerce_before_order_notes', 'ppg_add_custom_checkout_field' );
+add_action( 'woocommerce_before_order_notes', 'payping_ghestaadd_custom_checkout_field' );
 /**
  * @snippet       Validate Custom Field @ WooCommerce Checkout Page
  */
   
-function ppg_validate_new_checkout_field(){
+function payping_ghestavalidate_new_checkout_field(){
 	if( ! isset( $_POST['Mobile'] ) ){
 		wc_add_notice( 'شماره همراه را وارد کنید..', 'error' );
 	}elseif( preg_match("/^09[0-9]{9}$/", $_POST['Mobile'] ) == false ){
 		wc_add_notice( 'شماره همراه باید 11 رقمی و با 0 شروع شود.', 'error' );
 	}
 }
-add_action( 'woocommerce_after_checkout_validation', 'ppg_validate_new_checkout_field', 10, 2 );
+add_action( 'woocommerce_after_checkout_validation', 'payping_ghestavalidate_new_checkout_field', 10, 2 );
 /**
  * @snippet       Save & Display Custom Field @ WooCommerce Order
  */
-function ppg_save_new_checkout_field( $order_id ) { 
-    if ( $_POST['Mobile'] ) update_post_meta( $order_id, '_Mobile', esc_attr( $_POST['Mobile'] ) );
+function payping_ghestasave_new_checkout_field( $order_id ) { 
+    if( $_POST['Mobile'] ) update_post_meta( $order_id, '_Mobile', sanitize_text_field( $_POST['Mobile'] ) );
 }
-add_action( 'woocommerce_checkout_update_order_meta', 'ppg_save_new_checkout_field' );
+add_action( 'woocommerce_checkout_update_order_meta', 'payping_ghestasave_new_checkout_field' );
 	
-function ppg_show_new_checkout_field_order( $order ) {    
+function payping_ghestashow_new_checkout_field_order( $order ) {    
    $order_id = $order->get_id();
-   if ( get_post_meta( $order_id, '_Mobile', true ) ) echo '<p><strong>شماره همراه:</strong> ' . get_post_meta( $order_id, '_Mobile', true ) . '</p>';
+   if(get_post_meta( $order_id, '_Mobile', true ))echo sprintf(esc_html('<p><strong>شماره همراه:</strong>%s</p>'), get_post_meta( $order_id, '_Mobile', true ));
 }
-add_action( 'woocommerce_email_after_order_table', 'ppg_show_new_checkout_field_emails', 20, 4 );
+add_action( 'woocommerce_email_after_order_table', 'payping_ghestashow_new_checkout_field_emails', 20, 4 );
 	
-function ppg_show_new_checkout_field_emails( $order, $sent_to_admin, $plain_text, $email ) {
-    if ( get_post_meta( $order->get_id(), '_Mobile', true ) ) echo '<p><strong>شماره همراه:</strong> ' . get_post_meta( $order->get_id(), '_Mobile', true ) . '</p>';
+function payping_ghestashow_new_checkout_field_emails( $order, $sent_to_admin, $plain_text, $email ){
+    if(get_post_meta( $order->get_id(), '_Mobile', true ))echo sprintf(esc_html('<p><strong>شماره همراه:</strong>%s</p>'), get_post_meta($order->get_id(), '_Mobile', true));
 }
-add_action( 'woocommerce_admin_order_data_after_billing_address', 'ppg_show_new_checkout_field_order', 10, 1 );
+add_action( 'woocommerce_admin_order_data_after_billing_address', 'payping_ghestashow_new_checkout_field_order', 10, 1 );
 	
 }
